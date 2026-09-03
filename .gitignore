@@ -9,4 +9,5 @@ data/videos/samples/
 data/videos/*_annotated.*
 *.pt
 .claude/
+bin/
 data/sensors/*.csv
