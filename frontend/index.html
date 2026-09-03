@@ -69,12 +69,14 @@
             <select id="pipe-source">
               <option value="video">video file</option>
               <option value="synthetic">synthetic</option>
+              <option value="webcam">webcam (live, UNTESTED — see LIMITATIONS.md)</option>
+              <option value="rtsp">RTSP / IP camera (live, UNTESTED — see LIMITATIONS.md)</option>
             </select>
           </label>
-          <label>Video path
+          <label>Path / device index / RTSP URL
             <input id="pipe-path" type="text" value="data/videos/vtest.avi">
           </label>
-          <label>Max frames
+          <label>Max frames <span style="color:var(--text-dim)">(leave blank for webcam/RTSP — runs until you hit STOP)</span>
             <input id="pipe-maxframes" type="number" value="30" min="1">
           </label>
           <label class="checkbox-row"><input id="pipe-zone" type="checkbox" checked> Enable demo restricted zone</label>

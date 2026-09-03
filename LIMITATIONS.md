@@ -129,12 +129,20 @@ test clip (e.g. a shadow or bag briefly read as "bird" or "skateboard"). This is
 expected accuracy ceiling of the smallest model in the family — not a fabricated result,
 and not hidden: the raw event log includes every class the model actually output.
 
-## No webcam tested
+## Live camera support: written, NOT verified against real hardware
 
-Dev machine has no camera. `adapters/base.py` defines the interface a USB camera
-adapter would implement, but no such adapter has been written or tested. The
-architecture is source-agnostic by design, but "the architecture supports it" is not
-the same claim as "it has been tested."
+`adapters/webcam/webcam_source.py` (USB/built-in camera) and
+`adapters/network/rtsp_source.py` (IP camera) exist, wired into the pipeline
+and API (`source_type: "webcam"` / `"rtsp"`). What IS genuinely verified here
+(no camera exists on this dev machine, so this is honestly all that could
+be): the failure path. `WebcamSource(0)` and `RTSPSource(unreachable_url)`
+both fail with a clean `RuntimeError` rather than hanging — and a real bug
+was found doing this: an unreachable RTSP URL took **183 seconds** to fail
+(FFmpeg's default connect timeout) before `CAP_PROP_OPEN_TIMEOUT_MSEC` was
+added, cut to **10.8 seconds** for the same real test. The actual happy path
+— frames genuinely arriving from a real webcam or RTSP camera — has never
+been exercised. First real test happens on whatever machine actually has a
+camera attached.
 
 ## Spatial reasoning is 2D-only
 

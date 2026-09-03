@@ -362,7 +362,10 @@ class PipelineStartRequest(BaseModel):
 
 @app.post("/pipeline/start")
 def start_pipeline(req: PipelineStartRequest, user: User = Depends(get_current_user)):
-    safe_path = safe_data_path(req.path) if req.path else None
+    # The data/-only path check only makes sense for a server-side video
+    # file — a webcam device index ("0") or an rtsp:// URL isn't a
+    # filesystem path at all, so applying it there would just break them.
+    safe_path = safe_data_path(req.path) if (req.path and req.source_type == "video") else req.path
     try:
         run_id = pipeline_manager.start(req.source_type, safe_path, req.max_frames, req.zone)
     except RuntimeError as e:

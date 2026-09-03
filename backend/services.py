@@ -70,10 +70,14 @@ class PipelineManager:
         # start() returned success (run_id + status="RUNNING") for a request
         # that was always going to fail moments later. Caught by an API test
         # asserting an invalid source_type gets a 400, not a 200.
-        if source_type not in ("video", "synthetic"):
+        if source_type not in ("video", "synthetic", "webcam", "rtsp"):
             raise ValueError(f"Unsupported source_type: {source_type}")
         if source_type == "video" and not path:
             raise ValueError("path is required for source_type=video")
+        if source_type == "rtsp" and not path:
+            raise ValueError("path (the rtsp:// URL) is required for source_type=rtsp")
+        # webcam: `path` optionally carries the device index as a string
+        # ("0", "1", ...); defaults to 0 if omitted.
 
         with self._lock:
             if self.status.status == "RUNNING":
@@ -112,6 +116,12 @@ class PipelineManager:
                 if not path:
                     raise ValueError("path is required for source_type=video")
                 source = VideoFileSource(path)
+            elif source_type == "webcam":
+                from adapters.webcam.webcam_source import WebcamSource
+                source = WebcamSource(device_index=int(path) if path else 0)
+            elif source_type == "rtsp":
+                from adapters.network.rtsp_source import RTSPSource
+                source = RTSPSource(rtsp_url=path)
             else:
                 raise ValueError(f"Unsupported source_type: {source_type}")
 
