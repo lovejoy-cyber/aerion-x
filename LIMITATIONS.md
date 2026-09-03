@@ -129,7 +129,21 @@ test clip (e.g. a shadow or bag briefly read as "bird" or "skateboard"). This is
 expected accuracy ceiling of the smallest model in the family — not a fabricated result,
 and not hidden: the raw event log includes every class the model actually output.
 
-## Live camera support: written, NOT verified against real hardware
+## Live-ish phone/browser detection: real, partially verified
+
+"GO LIVE" on the Field Capture GUI page repeatedly calls the real
+`/capture/analyze` endpoint, self-paced to actual inference speed (waits for
+each response before capturing the next frame — can't outrun the detector),
+drawing bounding boxes over the camera preview. Verified: the fetch/response
+handling and the bounding-box overlay math (correct scaling and positioning
+against a real image and real returned detections). NOT verified: the loop
+running continuously against an actual live camera stream — no camera on
+this machine (browser correctly reported "Requested device not found," a
+clean real error, not a crash). Each frame is analyzed independently — no
+tracking IDs persist frame-to-frame, unlike the full video-file pipeline
+(no "this person has been standing still for 5s" style events here).
+
+## Live camera support (server-side): written, NOT verified against real hardware
 
 `adapters/webcam/webcam_source.py` (USB/built-in camera) and
 `adapters/network/rtsp_source.py` (IP camera) exist, wired into the pipeline
