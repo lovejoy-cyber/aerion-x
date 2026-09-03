@@ -473,6 +473,7 @@ document.getElementById("btn-camera-start").addEventListener("click", async () =
     const video = document.getElementById("capture-video");
     video.srcObject = captureStream;
     document.getElementById("btn-camera-shoot").disabled = false;
+    document.getElementById("btn-live-toggle").disabled = false;
   } catch (e) {
     errEl.textContent = "Camera unavailable: " + e.message +
       " (getUserMedia needs HTTPS or localhost — see the note in MOBILE_ARCHITECTURE.md if accessing from another device)";
@@ -492,6 +493,106 @@ document.getElementById("capture-file-input").addEventListener("change", (e) => 
   const file = e.target.files[0];
   if (file) analyzeCaptureBlob(file);
 });
+
+// ---------- live mode: self-pacing loop over the same tested endpoint ----------
+// No fixed-interval timer — each loop iteration waits for the previous
+// analysis to actually finish before capturing the next frame, so it paces
+// itself to real inference speed instead of piling up a backlog of requests
+// the detector can't keep up with.
+
+let liveRunning = false;
+let liveFrameCount = 0;
+let liveStartTime = 0;
+
+document.getElementById("btn-live-toggle").addEventListener("click", () => {
+  liveRunning = !liveRunning;
+  const btn = document.getElementById("btn-live-toggle");
+  const badge = document.getElementById("live-badge");
+  const fpsBadge = document.getElementById("live-fps-badge");
+  if (liveRunning) {
+    btn.textContent = "STOP LIVE";
+    badge.style.display = "inline-block";
+    fpsBadge.style.display = "inline-block";
+    document.getElementById("btn-camera-shoot").disabled = true;
+    liveFrameCount = 0;
+    liveStartTime = performance.now();
+    liveLoop();
+  } else {
+    btn.textContent = "GO LIVE";
+    badge.style.display = "none";
+    fpsBadge.style.display = "none";
+    document.getElementById("btn-camera-shoot").disabled = false;
+    clearOverlay();
+  }
+});
+
+function clearOverlay() {
+  const overlay = document.getElementById("capture-overlay");
+  overlay.getContext("2d").clearRect(0, 0, overlay.width, overlay.height);
+}
+
+async function liveLoop() {
+  const video = document.getElementById("capture-video");
+  const canvas = document.getElementById("capture-canvas");
+  const resultEl = document.getElementById("capture-result");
+
+  while (liveRunning) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", 0.85));
+    if (!liveRunning) break;
+
+    try {
+      const formData = new FormData();
+      formData.append("file", blob, "live.jpg");
+      const token = getToken();
+      const r = await fetch(API + "/capture/analyze", {
+        method: "POST",
+        headers: token ? { Authorization: "Bearer " + token } : {},
+        body: formData,
+      });
+      if (!r.ok) { const d = await r.json(); resultEl.innerHTML = `<div class="error-text">${d.detail || "Analysis failed"}</div>`; break; }
+      const data = await r.json();
+      if (!liveRunning) break;
+
+      drawLiveOverlay(video, data);
+      liveFrameCount++;
+      const elapsed = (performance.now() - liveStartTime) / 1000;
+      document.getElementById("live-fps-badge").textContent = `${(liveFrameCount / elapsed).toFixed(1)} fps · ${data.inference_ms.toFixed(0)}ms/frame`;
+      resultEl.innerHTML = `<div style="margin-top:4px">${data.detections.map(d =>
+        `<span class="region-chip">${d.class_name} ${(d.confidence * 100).toFixed(0)}%</span>`).join("") || "no detections this frame"}</div>`;
+    } catch (e) {
+      resultEl.innerHTML = `<div class="error-text">Live analysis error: ${e.message}</div>`;
+      break;
+    }
+  }
+  liveRunning = false;
+}
+
+function drawLiveOverlay(video, data) {
+  const overlay = document.getElementById("capture-overlay");
+  overlay.width = video.clientWidth;
+  overlay.height = video.clientHeight;
+  const scaleX = video.clientWidth / data.image_width;
+  const scaleY = video.clientHeight / data.image_height;
+  const ctx = overlay.getContext("2d");
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  ctx.lineWidth = 2;
+  ctx.font = "13px monospace";
+  data.detections.forEach(d => {
+    const [x1, y1, x2, y2] = d.bbox;
+    const rx = x1 * scaleX, ry = y1 * scaleY, rw = (x2 - x1) * scaleX, rh = (y2 - y1) * scaleY;
+    ctx.strokeStyle = "#4fd1c5";
+    ctx.strokeRect(rx, ry, rw, rh);
+    const label = `${d.class_name} ${(d.confidence * 100).toFixed(0)}%`;
+    const textWidth = ctx.measureText(label).width;
+    ctx.fillStyle = "#4fd1c5";
+    ctx.fillRect(rx, ry - 16, textWidth + 6, 16);
+    ctx.fillStyle = "#0b0e13";
+    ctx.fillText(label, rx + 3, ry - 4);
+  });
+}
 
 async function analyzeCaptureBlob(blob) {
   const preview = document.getElementById("capture-preview");

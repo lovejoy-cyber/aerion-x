@@ -233,20 +233,25 @@
       <header class="view-header"><h1>Field Capture</h1><p>Use this device's camera (including a phone's) to capture a photo and run it through the real detector — no app install needed, just a browser</p></header>
       <div class="grid-inspection">
         <div class="panel">
-          <div class="panel-title">CAMERA</div>
-          <video id="capture-video" autoplay playsinline muted style="width:100%;border-radius:4px;background:#000"></video>
+          <div class="panel-title">CAMERA <span id="live-badge" class="badge" style="display:none;background:#3a1c14;color:#e0522d">● LIVE</span></div>
+          <div style="position:relative">
+            <video id="capture-video" autoplay playsinline muted style="width:100%;border-radius:4px;background:#000;display:block"></video>
+            <canvas id="capture-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none"></canvas>
+          </div>
           <canvas id="capture-canvas" hidden></canvas>
           <div class="button-row" style="margin-top:10px">
             <button id="btn-camera-start" class="btn btn-secondary">START CAMERA</button>
             <button id="btn-camera-shoot" class="btn btn-primary" disabled>CAPTURE + ANALYZE</button>
+            <button id="btn-live-toggle" class="btn btn-danger" disabled>GO LIVE</button>
           </div>
           <label style="margin-top:10px">Or upload a photo instead
             <input id="capture-file-input" type="file" accept="image/jpeg,image/png,image/webp">
           </label>
           <div id="capture-error" class="error-text"></div>
+          <div class="panel-note">Live mode re-analyzes a fresh frame as fast as the detector can keep up (paced by real inference time, not a fixed timer) — each frame is analyzed independently, so this shows live detections but not persistent tracking IDs across frames (that depth exists in the video-file pipeline, not here).</div>
         </div>
         <div class="panel">
-          <div class="panel-title">RESULT</div>
+          <div class="panel-title">RESULT <span id="live-fps-badge" class="badge" style="display:none"></span></div>
           <img id="capture-preview" style="width:100%;border-radius:4px;display:none;margin-bottom:10px">
           <div id="capture-result" class="empty-state">No capture analyzed yet.</div>
         </div>
