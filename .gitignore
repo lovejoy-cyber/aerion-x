@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+data/db/*.sqlite3
+data/backups/
+data/reports/*.pdf
+data/videos/samples/
+data/videos/*_annotated.*
+*.pt
+.claude/
+data/sensors/*.csv

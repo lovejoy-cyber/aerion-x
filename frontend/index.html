@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AERION-X</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <div class="brand" style="border:none;padding:0;margin-bottom:20px;justify-content:center">
+      <div class="brand-mark">AX</div><div class="brand-text">AERION-X</div>
+    </div>
+    <p class="panel-note" style="text-align:center;margin-bottom:16px">Engineering intelligence workstation — sign in required for any action that changes state. First account created becomes ADMIN.</p>
+    <label>Username<input id="login-username" type="text" autocomplete="username"></label>
+    <label>Password<input id="login-password" type="password" autocomplete="current-password"></label>
+    <div class="button-row">
+      <button id="btn-login" class="btn btn-primary" style="flex:1">SIGN IN</button>
+      <button id="btn-register" class="btn btn-secondary" style="flex:1">REGISTER</button>
+    </div>
+    <div id="login-error" class="error-text"></div>
+  </div>
+</div>
+<div class="shell" id="app-shell" hidden>
+  <nav class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">AX</div>
+      <div class="brand-text">AERION-X</div>
+    </div>
+    <div class="nav-items">
+      <button class="nav-item active" data-view="command">COMMAND CENTER</button>
+      <button class="nav-item" data-view="events">EVENT INTELLIGENCE</button>
+      <button class="nav-item" data-view="sensors">SENSOR WORKSPACE</button>
+      <button class="nav-item" data-view="inspection">INSPECTION</button>
+      <button class="nav-item" data-view="motion">MOTION ANALYSIS</button>
+      <button class="nav-item" data-view="assets">ASSETS</button>
+      <button class="nav-item" data-view="models">MODEL LAB</button>
+      <button class="nav-item" data-view="capture">FIELD CAPTURE</button>
+      <button class="nav-item" data-view="audit" id="nav-audit" hidden>AUDIT LOG</button>
+    </div>
+    <div class="conn-status">
+      <div class="conn-row"><span class="dot" id="dot-api"></span><span>API</span><span id="txt-api">--</span></div>
+      <div class="conn-row"><span class="dot" id="dot-ws"></span><span>STREAM</span><span id="txt-ws">--</span></div>
+      <div class="conn-row"><span>USER</span><span id="txt-user">--</span></div>
+      <button id="btn-logout" class="btn btn-secondary" style="margin-top:8px;width:100%">SIGN OUT</button>
+    </div>
+  </nav>
+
+  <main class="content">
+
+    <!-- COMMAND CENTER -->
+    <section class="view active" id="view-command">
+      <header class="view-header"><h1>Command Center</h1><p>Live pipeline control &amp; real-time intelligence stream</p></header>
+
+      <div class="grid-command">
+        <div class="panel panel-video">
+          <div class="panel-title">LIVE / RECORDED OPERATIONS VIEW</div>
+          <video id="live-video" controls muted>
+            <source src="/media/vtest_annotated.webm" type="video/webm">
+            <source src="/media/vtest_annotated.mp4" type="video/mp4">
+          </video>
+          <div class="panel-note">Real annotated output from a prior full pipeline run over <code>vtest.avi</code> — bounding boxes, track IDs, states, zones and event markers were all produced by the actual detection/tracking/safety pipeline, not drawn by hand. Served as WebM/VP8 because this machine has no H.264 encoder available (OpenCV's H.264 path needs the OpenH264 DLL, which isn't installed, and there's no ffmpeg binary either) — a real environment limitation, documented in LIMITATIONS.md rather than worked around with a download.</div>
+        </div>
+
+        <div class="panel panel-control">
+          <div class="panel-title">PIPELINE CONTROL</div>
+          <label>Source type
+            <select id="pipe-source">
+              <option value="video">video file</option>
+              <option value="synthetic">synthetic</option>
+            </select>
+          </label>
+          <label>Video path
+            <input id="pipe-path" type="text" value="data/videos/vtest.avi">
+          </label>
+          <label>Max frames
+            <input id="pipe-maxframes" type="number" value="30" min="1">
+          </label>
+          <label class="checkbox-row"><input id="pipe-zone" type="checkbox" checked> Enable demo restricted zone</label>
+          <div class="button-row">
+            <button id="btn-start" class="btn btn-primary">START PIPELINE</button>
+            <button id="btn-stop" class="btn btn-danger">STOP</button>
+          </div>
+          <div id="pipe-error" class="error-text"></div>
+        </div>
+
+        <div class="panel panel-telemetry">
+          <div class="panel-title">SYSTEM TELEMETRY</div>
+          <div class="telemetry-grid">
+            <div class="metric"><div class="metric-label">STATUS</div><div class="metric-value" id="m-status">IDLE</div></div>
+            <div class="metric"><div class="metric-label">FPS</div><div class="metric-value" id="m-fps">0.0</div></div>
+            <div class="metric"><div class="metric-label">LATENCY</div><div class="metric-value" id="m-latency">0 ms</div></div>
+            <div class="metric"><div class="metric-label">ACTIVE TRACKS</div><div class="metric-value" id="m-tracks">0</div></div>
+            <div class="metric"><div class="metric-label">FRAMES</div><div class="metric-value" id="m-frames">0</div></div>
+            <div class="metric"><div class="metric-label">SOURCE</div><div class="metric-value" id="m-source">--</div></div>
+          </div>
+        </div>
+
+        <div class="panel panel-stream">
+          <div class="panel-title">LIVE EVENT STREAM <span class="badge" id="live-count">0</span></div>
+          <div class="event-feed" id="live-feed"><div class="empty-state">NO ACTIVE EVENTS — start a pipeline to see real events appear here</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EVENT INTELLIGENCE -->
+    <section class="view" id="view-events">
+      <header class="view-header"><h1>Event Intelligence</h1><p>Every event persisted by the unified <code>Event</code> schema — vision, safety, aviation-ops, sensor</p></header>
+      <div class="panel">
+        <div class="toolbar">
+          <select id="ev-filter">
+            <option value="">All types</option>
+          </select>
+          <input id="ev-limit" type="number" value="100" min="1" style="width:80px">
+          <button id="ev-refresh" class="btn btn-secondary">REFRESH</button>
+          <button id="ev-report" class="btn btn-secondary">DOWNLOAD PDF REPORT</button>
+          <span id="ev-count" class="badge"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="events-table">
+            <thead><tr><th>TIME</th><th>TYPE</th><th>SEVERITY</th><th>TRACKS</th><th>ZONE</th><th>PROVENANCE</th><th>SOURCE</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SENSOR WORKSPACE -->
+    <section class="view" id="view-sensors">
+      <header class="view-header"><h1>Sensor Intelligence</h1><p>Engineering telemetry, anomaly detection, provenance-labeled at every step</p></header>
+      <div class="grid-sensors">
+        <div class="panel">
+          <div class="panel-title">STREAMS</div>
+          <button id="btn-gen-sensor" class="btn btn-primary" style="margin-bottom:12px">GENERATE SYNTHETIC VIBRATION STREAM + DETECT ANOMALIES</button>
+          <div id="sensor-stream-list" class="list-select"></div>
+        </div>
+        <div class="panel panel-chart">
+          <div class="panel-title">SIGNAL <span id="sensor-provenance" class="badge"></span></div>
+          <svg id="sensor-chart" viewBox="0 0 800 260" preserveAspectRatio="none"></svg>
+          <div id="sensor-stats" class="stats-row"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INSPECTION -->
+    <section class="view" id="view-inspection">
+      <header class="view-header"><h1>Aircraft Inspection</h1><p>Real CLAHE + ORB registration + change detection + SSIM + contour scoring — generic visual change detection, never a certified defect claim</p></header>
+      <div class="grid-inspection">
+        <div class="panel">
+          <div class="panel-title">RUN INSPECTION</div>
+          <label>Asset ID<input id="insp-asset" type="text" value="DEMO_AIRCRAFT_1"></label>
+          <button id="btn-create-asset" class="btn btn-secondary">Ensure asset exists</button>
+          <label>Video path<input id="insp-video" type="text" value="data/videos/vtest.avi"></label>
+          <label>Reference frame<input id="insp-ref" type="number" value="0"></label>
+          <label>Current frame<input id="insp-cur" type="number" value="50"></label>
+          <button id="btn-run-inspection" class="btn btn-primary">RUN REAL INSPECTION</button>
+          <div id="insp-error" class="error-text"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">RESULT</div>
+          <div id="insp-result" class="empty-state">No inspection run yet.</div>
+        </div>
+        <div class="panel" style="grid-column: 1 / -1">
+          <div class="panel-title">HISTORY</div>
+          <div class="table-wrap">
+            <table class="data-table" id="insp-history-table">
+              <thead><tr><th>TIME</th><th>ASSET</th><th>CHANGE SCORE</th><th>MEAN SSIM</th><th>REGIONS</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MOTION ANALYSIS -->
+    <section class="view" id="view-motion">
+      <header class="view-header"><h1>Motion Analysis</h1><p>Real Farneback optical flow between two actual video frames</p></header>
+      <div class="panel">
+        <label>Video path<input id="flow-video" type="text" value="data/videos/vtest.avi"></label>
+        <label>Frame A<input id="flow-a" type="number" value="100"></label>
+        <label>Frame B<input id="flow-b" type="number" value="101"></label>
+        <button id="btn-run-flow" class="btn btn-primary">COMPUTE REAL OPTICAL FLOW</button>
+        <div id="flow-result" class="empty-state" style="margin-top:16px">No flow computed yet.</div>
+      </div>
+    </section>
+
+    <!-- ASSETS -->
+    <section class="view" id="view-assets">
+      <header class="view-header"><h1>Asset Intelligence</h1><p>Engineering assets and everything linked to them — inspections, sensors, events, anomalies</p></header>
+      <div class="grid-assets">
+        <div class="panel">
+          <div class="panel-title">CREATE ASSET</div>
+          <label>Asset ID<input id="asset-id" type="text" value="DEMO_AIRCRAFT_1"></label>
+          <label>Type
+            <select id="asset-type">
+              <option>AIRCRAFT</option><option>ENGINE</option><option>DRONE</option>
+              <option>GROUND_VEHICLE</option><option>WORKER</option><option>EQUIPMENT</option>
+              <option>MACHINE</option><option>PIPELINE</option><option>INFRASTRUCTURE</option>
+            </select>
+          </label>
+          <label>Name<input id="asset-name" type="text" value="Demo Aircraft"></label>
+          <button id="btn-create-asset2" class="btn btn-primary">CREATE</button>
+          <div class="panel-title" style="margin-top:20px">ASSETS</div>
+          <div id="asset-list" class="list-select"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">LINKED INTELLIGENCE</div>
+          <div id="asset-graph" class="empty-state">Select an asset to see its linked sensor streams, inspections, events and anomalies.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODEL LAB -->
+    <section class="view" id="view-models">
+      <header class="view-header"><h1>Model Lab</h1><p>Real model metadata pulled from the loaded model object — never invented</p></header>
+      <div class="panel">
+        <button id="btn-register-model" class="btn btn-primary">REGISTER YOLOv8n (loads real model, extracts real metadata)</button>
+        <div class="table-wrap" style="margin-top:16px">
+          <table class="data-table" id="models-table">
+            <thead><tr><th>NAME</th><th>VERSION</th><th>FRAMEWORK</th><th>PARAMS</th><th>CLASSES</th><th>HARDWARE</th><th>LICENSE</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="panel-note" style="margin-top:16px">EVALUATION: precision/recall/F1/IoU require a labeled ground-truth dataset. None exists locally for this deployment — evaluation would report <code>EVALUATION DATASET: NOT AVAILABLE</code> rather than an invented number (see <code>core/model_lab/evaluation.py</code>).</div>
+      </div>
+    </section>
+
+    <!-- FIELD CAPTURE (works from a phone browser on the same network) -->
+    <section class="view" id="view-capture">
+      <header class="view-header"><h1>Field Capture</h1><p>Use this device's camera (including a phone's) to capture a photo and run it through the real detector — no app install needed, just a browser</p></header>
+      <div class="grid-inspection">
+        <div class="panel">
+          <div class="panel-title">CAMERA</div>
+          <video id="capture-video" autoplay playsinline muted style="width:100%;border-radius:4px;background:#000"></video>
+          <canvas id="capture-canvas" hidden></canvas>
+          <div class="button-row" style="margin-top:10px">
+            <button id="btn-camera-start" class="btn btn-secondary">START CAMERA</button>
+            <button id="btn-camera-shoot" class="btn btn-primary" disabled>CAPTURE + ANALYZE</button>
+          </div>
+          <label style="margin-top:10px">Or upload a photo instead
+            <input id="capture-file-input" type="file" accept="image/jpeg,image/png,image/webp">
+          </label>
+          <div id="capture-error" class="error-text"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">RESULT</div>
+          <img id="capture-preview" style="width:100%;border-radius:4px;display:none;margin-bottom:10px">
+          <div id="capture-result" class="empty-state">No capture analyzed yet.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AUDIT LOG (ADMIN only) -->
+    <section class="view" id="view-audit">
+      <header class="view-header"><h1>Audit Log</h1><p>Real system actions — login, pipeline lifecycle, asset/inspection/model changes, authorization denials</p></header>
+      <div class="panel">
+        <div class="table-wrap">
+          <table class="data-table" id="audit-table">
+            <thead><tr><th>TIME</th><th>USER</th><th>ACTION</th><th>OBJECT</th><th>RESULT</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

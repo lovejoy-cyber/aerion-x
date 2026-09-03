@@ -1,0 +1,16 @@
+torch
+torchvision
+opencv-python
+numpy
+scipy
+ultralytics
+scikit-learn
+psutil
+pytest
+fastapi
+uvicorn[standard]
+httpx
+websockets
+pyjwt
+reportlab
+python-multipart

@@ -1,0 +1,16 @@
+services:
+  aerionx:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # No default secret is baked into the image — set your own for any
+      # deployment that must survive a container restart with sessions intact.
+      - AERIONX_JWT_SECRET=${AERIONX_JWT_SECRET:?set AERIONX_JWT_SECRET before starting}
+      - AERIONX_LOG_LEVEL=INFO
+    volumes:
+      - aerionx_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  aerionx_data:
